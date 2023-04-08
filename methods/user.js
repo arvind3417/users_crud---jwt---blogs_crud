@@ -3,7 +3,11 @@ const { User } = require("../models/db-schemas");
 
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-
+const redis = require("redis");
+const client = redis.createClient();
+client.on("error", function (error) {
+  console.error(error);
+});
 
 // GET all users
 module.exports.getAll = async (req, res) => {
@@ -46,45 +50,96 @@ module.exports.getAll = async (req, res) => {
 //     res.status(400).json({ error: err.message });
 //   }
 // }
+// module.exports.signup = async (req, res, next) => {
+//   const { name, email, mobile, password } = req.body;
+
+
+//   try {
+//   let existingUser;
+
+//     existingUser = await User.findOne({ email });
+//     if (existingUser) {
+ 
+//       res.json({
+//         message: "user exist please try logging in instead of signing up",
+//       });
+//     } else {
+//       // Hash the password
+//       const saltRounds = 10;
+//       const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//       const user = new User({
+//         name,
+//         email,
+//         mobile,
+//         password: hashedPassword,
+//       });
+
+     
+//       await user.save();
+  
+//       const token = jwt.sign({ _id: user._id }, "secret");
+    
+//       return res.status(200).json({ user: user, token });
+//     }
+//   } catch (error) {
+//     console.log(error);
+//   }
+
+// };
+
+
 module.exports.signup = async (req, res, next) => {
   const { name, email, mobile, password } = req.body;
 
-
   try {
-  let existingUser;
-
-    existingUser = await User.findOne({ email });
+    let existingUser = await User.findOne({ email });
     if (existingUser) {
- 
-      res.json({
-        message: "user exist please try logging in instead of signing up",
+      return res.status(400).json({
+        message: "User already exists. Please try logging in instead of signing up",
       });
-    } else {
-      // Hash the password
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-      const user = new User({
-        name,
-        email,
-        mobile,
-        password: hashedPassword,
-      });
-
-     
-      await user.save();
-  
-      const token = jwt.sign({ _id: user._id }, "secret");
-    
-      return res.status(200).json({ user: user, token });
     }
+
+    // Hash the password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create a new user
+    const user = new User({
+      name,
+      email,
+      mobile,
+      password: hashedPassword,
+    });
+
+    await user.save();
+
+    const accessToken = jwt.sign({ userId: user._id },"secret", {
+      expiresIn: "1m",
+    });
+
+    const refreshToken = jwt.sign({ userId: user._id }, "secret");
+
+    try {
+  await client.connect();
+
+      await client.set(user._id.toString(), refreshToken);
+      await client.disconnect();
+      console.log('Refresh token added to Redis');
+    } catch (error) {
+      console.log(error);
+    }
+
+    return res.status(200).json({ accessToken, refreshToken });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({ message: "Something went wrong" });
   }
-
 };
 
+
 module.exports.login = async (req, res) => {
+  // await client.connect();
   const { email, password } = req.body;
   let user;
   try {
@@ -97,11 +152,23 @@ module.exports.login = async (req, res) => {
   } else {
     const isPasswordCorrect = bcrypt.compareSync(password, user.password);
     if (!isPasswordCorrect) {
-      return res.status(200).json({ message: "Incorrect password" });
+      return res.status(200).json({ message: "Incorrect credentials" });
     } else {
-      const token = jwt.sign({ _id: user._id }, "secret");
-
-      return res.status(200).json({ message: "login success", token });
+      const token = jwt.sign({ _id: user._id }, "secret", {
+        expiresIn: "1m",
+      });
+  
+      const refreshToken = jwt.sign(
+        { _id: user._id },
+        "secret"
+        
+      );
+  await client.connect();
+  
+    await  client.set(user._id.toString(), refreshToken);
+    await client.disconnect();
+  
+      return res.status(200).json({ message: 'Login success', token, refreshToken });
     }
   }
 };
