@@ -11,7 +11,7 @@ app.use("/posts",postrouter)
 
 // require('dotenv').config()
 const port = process.env.PORT || 5000
-mongoose.connect('mongodb+srv://admin:admin@cluster0.8unxxd0.mongodb.net/varlyq' , {
+  mongoose.connect('mongodb+srv://admin:admin@cluster0.8unxxd0.mongodb.net/varlyq' , {
     useNewUrlParser: true,
     useUnifiedTopology: true
   })
