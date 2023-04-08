@@ -21,4 +21,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/varlyq' , {
   .catch((error) => {
     console.error('Error connecting to MongoDB:', error);
   });
+  app.get('/', (req, res) => {
+    res.send("Hi there love you")
+  });
 app.listen(port,(req,res)=>{console.log(`server hitt on ${port}`)})
