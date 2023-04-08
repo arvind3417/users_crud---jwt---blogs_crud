@@ -1,4 +1,4 @@
-// const express = require('express');
+
 
 const { Post } = require('../models/db-schemas');
 
@@ -58,7 +58,7 @@ module.exports. updatepost = async (req, res) => {
   try {
     const  userId  = req.user._id;
     const { id } = req.params;
-    const { message } = req.body;
+    const { message,comments } = req.body;
 
     const post = await Post.findOne({ _id: id, createdBy: userId });
 
@@ -67,6 +67,7 @@ module.exports. updatepost = async (req, res) => {
     }
 
     post.message = message;
+    post.comments = comments;
     post.updatedAt = new Date();
 
     await post.save();
@@ -78,24 +79,5 @@ module.exports. updatepost = async (req, res) => {
   }
 }
 
-// Authenticate middleware (verify JWT token)
-// const authenticate = (req, res, next) => {
-//   const authHeader = req.headers.authorization;
-
-//   if (!authHeader) {
-//     return res.status(401).json({ message: 'Authorization header missing' });
-//   }
-
-//   const token = authHeader.split(' ')[1];
-
-//   try {
-//     const decoded = jwt.verify(token, 'secret');
-//     req.user = decoded;
-//     next();
-//   } catch (err) {
-//     console.error(err);
-//     res.status(401).json({ message: 'Invalid or expired token' });
-//   }
-// };
 
 
