@@ -4,6 +4,7 @@ const { User } = require("../models/db-schemas");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const redis = require("redis");
+const nodemailer = require("nodemailer")
 const client = redis.createClient();
 client.on("error", function (error) {
   console.error(error);
@@ -213,3 +214,98 @@ module.exports.updateUser = async (req, res) => {
 };
 
 
+module.exports.forgotpass = async (req,res)=> {
+try {
+  const user = await User.findOne({email : req.body.email})
+  if(!user){
+    res.json({message: "there is no such user enter the email properly"})
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'buggercyber@gmail.com',
+      pass: 'nuurklixnnnpmvoh'
+    }
+  });
+
+        const token = jwt.sign({ email:req.body.email }, "secret" )
+
+        user.regeneratedPassToken = token
+        
+        await user.save();
+        console.log('====================================');
+        console.log(user.regeneratedPassToken);
+        console.log('====================================');
+
+        const resetLink = `http://localhost:5000/user/reset-pass/${token}`;
+        console.log(resetLink);
+        const mailOptions = {
+          from: "buggercyber@gmail.com",
+          to: user.email,
+          subject: 'Password Reset Request',
+          html: `Click <a href="${resetLink}">here</a> to reset your password. This link is valid for 1 hour.`
+        };
+        await transporter.sendMail(mailOptions);
+    
+        res.json({ message: 'Password reset link sent to your email' });
+
+
+
+
+
+} catch (error) {
+  console.log(error);
+  res.json({err : error})
+  
+}
+}
+
+module.exports.resetpass =  async (req, res) => {
+  try {
+    const  token  = req.params.token;
+    const { password } = req.body;
+    console.log('====================================');
+    console.log();
+    console.log(token);
+
+    console.log('====================================');
+
+    const user = await User.findOne({
+      regeneratedPassToken: token,
+      // resetPasswordExpires: { $gt: Date.now() },
+    });
+    console.log('====================================');
+    console.log(user);
+    console.log('====================================');
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+    if (!password) {
+      return res.status(400).json({ message: 'Invalid password' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    console.log('====================================');
+    console.log("asndj");
+    console.log(hashedPassword);
+    console.log('====================================');
+
+
+    user.password = hashedPassword;
+  //  user.regeneratedPassToken = "";
+    // user.resetPasswordExpires = null;
+    console.log(user.password);
+
+    await user.save();
+    console.log('====================================');
+    console.log("done");
+    console.log('====================================');
+    res.status(200).json({ message: 'Password reset successful' });
+
+  }
+  catch(e){
+console.log(e);
+res.json({message : e})
+  }
+}

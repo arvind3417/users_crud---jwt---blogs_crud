@@ -61,7 +61,11 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true
-  }
+  },
+  regeneratedPassToken:String,
+  
+
+  
 });
 
 // Create the Post model
